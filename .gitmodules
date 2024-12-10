@@ -1,0 +1,6 @@
+[submodule "deployment_examples/01-Flask_web_app"]
+	path = deployment_examples/01-Flask_web_app
+	url = https://github.com/gperdrizet/Flask_web_app
+[submodule "deployment_examples/02-Streamlit_web_app"]
+	path = deployment_examples/02-Streamlit_web_app
+	url = https://github.com/gperdrizet/Streamlit_web_app
