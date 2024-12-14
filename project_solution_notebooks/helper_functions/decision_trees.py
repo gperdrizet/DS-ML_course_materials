@@ -1,4 +1,5 @@
 '''Helper functions for decision trees project solution notebook.'''
+
 import itertools
 import seaborn as sns
 import numpy as np
@@ -6,16 +7,9 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from sklearn.experimental import enable_iterative_imputer
+from sklearn.experimental import enable_iterative_imputer # pylint: disable=unused-import
 from sklearn.impute import IterativeImputer
 from sklearn.preprocessing import QuantileTransformer
-
-
-def db_connect():
-    import os
-    engine = create_engine(os.getenv('DATABASE_URL'))
-    engine.connect()
-    return engine
 
 
 def impute(data_df: pd.DataFrame, missing_data_features: list) -> pd.DataFrame:
@@ -31,15 +25,24 @@ def impute(data_df: pd.DataFrame, missing_data_features: list) -> pd.DataFrame:
     # Make a copy of the training features dataframe, in case we decide that this
     # is a bad idea
     imputed_training_features=data_df.copy()
-    imputed_training_features[missing_data_features]=imputed_training_features[missing_data_features].replace({0:np.nan})
+    imputed_training_features[missing_data_features]=(
+        imputed_training_features[missing_data_features].replace({0:np.nan}))
 
     # Quantile transform our target features - this is for the imputer, not the decision tree
-    qt=QuantileTransformer(n_quantiles=10, random_state=0)
+    qt=QuantileTransformer(n_quantiles=100, output_distribution='normal', random_state=0)
     qt.fit(imputed_training_features[missing_data_features])
-    imputed_training_features[missing_data_features]=qt.transform(imputed_training_features[missing_data_features])
+    imputed_training_features[missing_data_features]=(
+        qt.transform(imputed_training_features[missing_data_features]))
 
     # Run the imputation
-    imp=IterativeImputer(max_iter=100, verbose=True, tol=1e-6, sample_posterior=True, add_indicator=True)
+    imp=IterativeImputer(
+        max_iter=100,
+        verbose=True,
+        tol=1e-6,
+        sample_posterior=True,
+        add_indicator=True
+    )
+
     imp.fit(imputed_training_features)
     imputed_training_features=imp.transform(imputed_training_features)
 
@@ -49,7 +52,14 @@ def impute(data_df: pd.DataFrame, missing_data_features: list) -> pd.DataFrame:
         indicator_features.append(f'{feature}_indicator')
 
     feature_names.extend(indicator_features)
+
     imputed_training_features=pd.DataFrame(data=imputed_training_features, columns=feature_names)
+
+    # Now that zeros have been replaces - undo the quantile transformation.
+    # This way we are training the model on un-altered values. This way,
+    # during deployment, we don't have to worry about transforming the input data.
+    imputed_training_features[missing_data_features]=qt.inverse_transform(
+        imputed_training_features[missing_data_features])
 
     return imputed_training_features, imp, qt
 
@@ -89,7 +99,7 @@ def plot_scatter_matrix(input_df: pd.DataFrame) -> plt:
     fig_height=num_features * single_plot_width
 
     # Now, set the total width such that fraction occupied by the scatter matrix
-    # equals the height. This will let us draw a square cross-corelation matrix 
+    # equals the height. This will let us draw a square cross-corelation matrix
     # with the right amount of space left for the colorbar
     fig_width=fig_height / scatter_fraction
 
@@ -172,7 +182,7 @@ def plot_scatter_matrix(input_df: pd.DataFrame) -> plt:
     )
 
     color_bar.set_label('Spearman correlation coefficient', size = 18)
-    color_bar.ax.tick_params(labelsize = 14) 
+    color_bar.ax.tick_params(labelsize = 14)
 
     return plt
 
@@ -193,10 +203,10 @@ def plot_cross_validation(title: str, results: dict) -> plt:
         medians.append(np.median(scores))
 
     for ytick in box_plot.get_yticks():
-        box_plot.text(medians[ytick],ytick,f'{medians[ytick]:.1f}%', 
-                horizontalalignment='center',size='x-small',color='black',weight='semibold',
-                bbox=dict(facecolor='gray', edgecolor='black'))
-    
+        box_plot.text(medians[ytick],ytick,f'{medians[ytick]:.1f}%',
+            horizontalalignment='center',size='x-small',color='black',weight='semibold',
+            bbox=dict(facecolor='gray', edgecolor='black'))
+
     plt.title(title)
     plt.xlabel('Accuracy (%)')
 
